@@ -606,13 +606,14 @@ class Instances(Resource):
 
     @jwt_required
     def post(self, name=None, cpus=None, memory=None, network=None,
-             disk=None, ssh_key=None, user_data=None, placed_on=None, namespace=None,
-             instance_uuid=None, video=None):
+             disk=None, ssh_key=None, user_data=None, placed_on=None,
+             namespace=None, instance_uuid=None, video=None):
         global SCHEDULER
 
         # Check that the instance name is safe for use as a DNS host name
         if name != re.sub(r'([^a-zA-Z0-9_\-])', '', name) or len(name) > 63:
-            return error(400, 'instance name must be useable as a DNS host name')
+            return error(
+                400, 'instance name must be useable as a DNS host name')
 
         # If we are placed, make sure that node exists
         if placed_on and not db.get_node(placed_on):
@@ -623,16 +624,18 @@ class Instances(Resource):
             return error(400, 'instance must specify at least one disk')
         for d in disk:
             if not isinstance(d, dict):
-                return error(400, 'disk specification should contain JSON objects')
+                return error(
+                    400, 'disk specification should contain JSON objects')
 
         if network:
             for n in network:
                 if not isinstance(n, dict):
-                    return error(400,
-                                 'network specification should contain JSON objects')
+                    return error(
+                        400, 'network specification should contain JSON objects')
 
                 if 'network_uuid' not in n:
-                    return error(400, 'network specification is missing network_uuid')
+                    return error(
+                        400, 'network specification is missing network_uuid')
 
         if not video:
             video = {'model': 'cirrus', 'memory': 16384}
@@ -646,25 +649,27 @@ class Instances(Resource):
 
         # If accessing a foreign namespace, we need to be an admin
         if get_jwt_identity() not in [namespace, 'system']:
-            return error(401,
-                         'only admins can create resources in a different namespace')
+            return error(
+                401, 'only admins can create resources in a different namespace')
 
-        # The instance needs to exist in the DB before network interfaces are created
-        if not instance_uuid:
+        # The instance needs to exist in the DB before network interfaces are
+        # created
+        if instance_uuid:
+            # Get instance object
+            instance = virt.from_db(instance_uuid)
+            if not instance:
+                if get_jwt_identity() not in [instance.db_entry['namespace'], 'system']:
+                    LOG.withField('instance', instance_uuid).info(
+                        'Instance not found, ownership test')
+                    return error(404, 'instance not found')
+
+        else:
             instance_uuid = str(uuid.uuid4())
             db.add_event('instance', instance_uuid,
                          'uuid allocated', None, None, None)
 
-        # Create instance object
-        instance = virt.from_db(instance_uuid)
-        if instance:
-            if get_jwt_identity() not in [instance.db_entry['namespace'], 'system']:
-                LOG.withField('instance', instance_uuid).info(
-                    'Instance not found, ownership test')
-                return error(404, 'instance not found')
-
         if not instance:
-            instance = virt.from_definition(
+            instance = Instance.from_new(
                 uuid=instance_uuid,
                 name=name,
                 disks=disk,

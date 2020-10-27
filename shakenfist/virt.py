@@ -22,21 +22,6 @@ from shakenfist import util
 LOG, _ = logutil.setup(__name__)
 
 
-def from_definition(uuid=None, name=None, disks=None, memory_mb=None,
-                    vcpus=None, ssh_key=None, user_data=None, owner=None,
-                    video=None, requested_placement=None):
-    db_entry = db.create_instance(uuid, name, vcpus, memory_mb, disks,
-                                  ssh_key, user_data, owner, video, requested_placement)
-    return Instance(db_entry)
-
-
-def from_db(uuid):
-    db_entry = db.get_instance(uuid)
-    if not db_entry:
-        return None
-    return Instance(db_entry)
-
-
 def _get_defaulted_disk_bus(disk):
     bus = disk.get('bus')
     if bus:
@@ -62,23 +47,41 @@ def _get_defaulted_disk_type(disk):
 
 
 class Instance(object):
-    def __init__(self, db_entry):
-        self.db_entry = db_entry
+    def __init__(self, uuid, block_devices=None):
+        self.uuid = uuid
+        self.block_devices = block_devices
 
+        # Derived parameters
         self.instance_path = os.path.join(
-            config.parsed.get('STORAGE_PATH'), 'instances', self.db_entry['uuid'])
+            config.parsed.get('STORAGE_PATH'), 'instances', self.uuid)
         self.snapshot_path = os.path.join(
             config.parsed.get('STORAGE_PATH'), 'snapshots')
         self.xml_file = os.path.join(self.instance_path, 'libvirt.xml')
 
-        if not self.db_entry['block_devices']:
+        if not self.block_devices:
             self._populate_block_devices()
 
+    def from_new(uuid=None, name=None, disks=None, memory_mb=None, vcpus=None,
+                 ssh_key=None, user_data=None, owner=None, video=None,
+                 requested_placement=None):
+    db_entry = db.create_instance(uuid, name, vcpus, memory_mb, disks,
+                                  ssh_key, user_data, owner, video, requested_placement)
+    return Instance(db_entry)
+
+    @staticmethod
+    def from_db(uuid):
+        db_entry = db.get_instance(uuid)
+        if not db_entry:
+            LOG.withField('instance',
+                          instance_uuid).info('from_db: Instance not found')
+            return None
+        return Instance(**db_entry)
+
     def __str__(self):
-        return 'instance(%s)' % self.db_entry['uuid']
+        return 'instance(%s)' % self.uuid
 
     def unique_label(self):
-        return ('instance', self.db_entry['uuid'])
+        return ('instance', self.uuid)
 
     def _populate_block_devices(self):
         disk_spec = self.db_entry['disk_spec']
@@ -88,7 +91,7 @@ class Instance(object):
                 'Found disk spec empty: %s' % self.db_entry)
 
             # Stop continuous crashing by falsely claiming disks are configured.
-            self.db_entry['block_devices'] = {'finalized': True}
+            self.block_devices = {'finalized': True}
             return
 
         bus = _get_defaulted_disk_bus(disk_spec[0])
@@ -99,7 +102,7 @@ class Instance(object):
         if config.parsed.get('DISK_FORMAT') == 'flat':
             disk_type = 'raw'
 
-        self.db_entry['block_devices'] = {
+        self.block_devices = {
             'devices': [
                 {
                     'type': disk_type,
@@ -126,7 +129,7 @@ class Instance(object):
         for d in self.db_entry['disk_spec'][1:]:
             bus = _get_defaulted_disk_bus(d)
             device = _get_disk_device_base(bus) + chr(ord('c') + i)
-            self.db_entry['block_devices']['devices'].append({
+            self.block_devices['devices'].append({
                 'type': disk_type,
                 'size': d.get('size'),
                 'device': device,
@@ -138,14 +141,14 @@ class Instance(object):
             })
             i += 1
 
-        self.db_entry['block_devices']['finalized'] = False
+        self.block_devices['finalized'] = False
 
     # NOTE(mikal): this method is now strictly the instance specific steps for
     # creation. It is assumed that the image sits in local cache already, and
     # has been transcoded to the right format. This has been done to facilitate
     # moving to a queue and task based creation mechanism.
     def create(self, lock=None):
-        db.update_instance_state(self.db_entry['uuid'], 'creating')
+        db.update_instance_state(self.uuid, 'creating')
 
         # Ensure we have state on disk
         if not os.path.exists(self.instance_path):
@@ -156,12 +159,12 @@ class Instance(object):
         # Generate a config drive
         with util.RecordedOperation('make config drive', self):
             self._make_config_drive(os.path.join(
-                self.instance_path, self.db_entry['block_devices']['devices'][1]['path']))
+                self.instance_path, self.block_devices['devices'][1]['path']))
 
         # Prepare disks
-        if not self.db_entry['block_devices']['finalized']:
+        if not self.block_devices['finalized']:
             modified_disks = []
-            for disk in self.db_entry['block_devices']['devices']:
+            for disk in self.block_devices['devices']:
                 if disk.get('base'):
                     img = images.Image.from_url(disk['base'])
                     hashed_image_path = img.version_image_path()
@@ -231,11 +234,11 @@ class Instance(object):
 
                 modified_disks.append(disk)
 
-            self.db_entry['block_devices']['devices'] = modified_disks
-            self.db_entry['block_devices']['finalized'] = True
+            self.block_devices['devices'] = modified_disks
+            self.block_devices['finalized'] = True
 
         db.persist_block_devices(
-            self.db_entry['uuid'], self.db_entry['block_devices'])
+            self.uuid, self.block_devices)
 
         # Create the actual instance
         with util.RecordedOperation('create domain XML', self):
@@ -256,7 +259,7 @@ class Instance(object):
             LOG.withObj(self).info('Instance now powered on')
         else:
             LOG.withObj(self).info('Instance failed to power on')
-        db.update_instance_state(self.db_entry['uuid'], 'created')
+        db.update_instance_state(self.uuid, 'created')
 
     def delete(self):
         with util.RecordedOperation('delete domain', self):
@@ -277,7 +280,7 @@ class Instance(object):
                 util.ignore_exception('instance delete', e)
 
         with util.RecordedOperation('release network addresses', self):
-            for ni in db.get_instance_interfaces(self.db_entry['uuid']):
+            for ni in db.get_instance_interfaces(self.uuid):
                 db.update_network_interface_state(ni['uuid'], 'deleted')
                 with db.get_lock('ipmanager', None, ni['network_uuid'],
                                  ttl=120, op='Instance delete'):
@@ -312,7 +315,7 @@ class Instance(object):
         # meta_data.json
         md = json.dumps({
             'random_seed': base64.b64encode(os.urandom(512)).decode('ascii'),
-            'uuid': self.db_entry['uuid'],
+            'uuid': self.uuid,
             'availability_zone': config.parsed.get('ZONE'),
             'hostname': '%s.local' % self.db_entry['name'],
             'launch_index': 0,
@@ -353,7 +356,7 @@ class Instance(object):
         }
 
         seen_networks = []
-        for iface in db.get_instance_interfaces(self.db_entry['uuid']):
+        for iface in db.get_instance_interfaces(self.uuid):
             devname = 'eth%d' % iface['order']
             nd['links'].append(
                 {
@@ -424,7 +427,7 @@ class Instance(object):
             t = jinja2.Template(f.read())
 
         networks = []
-        for iface in list(db.get_instance_interfaces(self.db_entry['uuid'])):
+        for iface in list(db.get_instance_interfaces(self.uuid)):
             n = net.from_db(iface['network_uuid'])
             networks.append(
                 {
@@ -438,10 +441,10 @@ class Instance(object):
         # XML takes them in KB. That wouldn't be worth a comment here if I hadn't
         # spent _ages_ finding a bug related to it.
         xml = t.render(
-            uuid=self.db_entry['uuid'],
+            uuid=self.uuid,
             memory=self.db_entry['memory'] * 1024,
             vcpus=self.db_entry['cpus'],
-            disks=self.db_entry['block_devices']['devices'],
+            disks=self.block_devices['devices'],
             networks=networks,
             instance_path=self.instance_path,
             console_port=self.db_entry['console_port'],
@@ -457,7 +460,7 @@ class Instance(object):
         libvirt = util.get_libvirt()
         conn = libvirt.open(None)
         try:
-            return conn.lookupByName('sf:' + self.db_entry['uuid'])
+            return conn.lookupByName('sf:' + self.uuid)
 
         except libvirt.libvirtError:
             return None
@@ -522,7 +525,7 @@ class Instance(object):
         images.snapshot(None, source, destination)
 
     def snapshot(self, all=False):
-        disks = self.db_entry['block_devices']['devices']
+        disks = self.block_devices['devices']
         if not all:
             disks = [disks[0]]
 
