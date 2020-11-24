@@ -14,7 +14,7 @@
       
       
       <link rel="shortcut icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.1.2, mkdocs-material-6.1.4">
+      <meta name="generator" content="mkdocs-1.1.2, mkdocs-material-6.1.6">
     
     
       
@@ -22,10 +22,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.358818c7.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.6910b76c.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.f0267088.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.196e0c26.min.css">
         
       
     
@@ -106,7 +106,7 @@
   <label class="md-search__overlay" for="__search"></label>
   <div class="md-search__inner" role="search">
     <form class="md-search__form" name="search">
-      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" data-md-state="active">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" data-md-state="active" required>
       <label class="md-search__icon md-icon" for="__search">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0116 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 019.5 16 6.5 6.5 0 013 9.5 6.5 6.5 0 019.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5z"/></svg>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12z"/></svg>
@@ -228,8 +228,7 @@
 
   <li class="md-nav__item md-nav__item--nested">
     
-      <input class="md-nav__toggle md-toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4">
-    
+    <input class="md-nav__toggle md-toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4" >
     <label class="md-nav__link" for="nav-4">
       User Guide
       <span class="md-nav__icon md-icon"></span>
@@ -280,8 +279,7 @@
 
   <li class="md-nav__item md-nav__item--active md-nav__item--nested">
     
-      <input class="md-nav__toggle md-toggle" data-md-toggle="nav-5" type="checkbox" id="nav-5" checked>
-    
+    <input class="md-nav__toggle md-toggle" data-md-toggle="nav-5" type="checkbox" id="nav-5" checked>
     <label class="md-nav__link" for="nav-5">
       Developer Guide
       <span class="md-nav__icon md-icon"></span>
@@ -471,8 +469,7 @@
 
   <li class="md-nav__item md-nav__item--nested">
     
-      <input class="md-nav__toggle md-toggle" data-md-toggle="nav-6" type="checkbox" id="nav-6">
-    
+    <input class="md-nav__toggle md-toggle" data-md-toggle="nav-6" type="checkbox" id="nav-6" >
     <label class="md-nav__link" for="nav-6">
       Operator Guide
       <span class="md-nav__icon md-icon"></span>
@@ -492,8 +489,7 @@
 
   <li class="md-nav__item md-nav__item--nested">
     
-      <input class="md-nav__toggle md-toggle" data-md-toggle="nav-6-1" type="checkbox" id="nav-6-1">
-    
+    <input class="md-nav__toggle md-toggle" data-md-toggle="nav-6-1" type="checkbox" id="nav-6-1" >
     <label class="md-nav__link" for="nav-6-1">
       Networking Explained
       <span class="md-nav__icon md-icon"></span>
@@ -559,8 +555,7 @@
 
   <li class="md-nav__item md-nav__item--nested">
     
-      <input class="md-nav__toggle md-toggle" data-md-toggle="nav-7" type="checkbox" id="nav-7">
-    
+    <input class="md-nav__toggle md-toggle" data-md-toggle="nav-7" type="checkbox" id="nav-7" >
     <label class="md-nav__link" for="nav-7">
       Change Log
       <span class="md-nav__icon md-icon"></span>
@@ -717,30 +712,41 @@
 <p>The Shaken Fist developers have chosen <strong>Trunk Based Development.</strong></p>
 <h2 id="branch-types">Branch Types</h2>
 <ol>
-<li><code>master</code> branch<ul>
-<li>This is the development trunk.</li>
-<li>All <code>feature</code> branches are branched from <code>master</code> and merged to <code>master</code>.</li>
+<li>
+<p>Branch <code>master</code></p>
+<ul>
+<li>This branch should be a working version of the project that has passed all unit and integration tests.</li>
+<li>The code is reasonably reliable but still has the reliability of software with a v0.x semver tag.</li>
+<li>Code on the <code>develop</code> branch that has passed all CI pipelines can be merged to <code>master</code>.</li>
 </ul>
 </li>
-<li><code>feature</code> branches<ul>
+<li>
+<p>Branch <code>develop</code></p>
+<ul>
+<li>This is the development trunk.</li>
+<li>All <code>feature</code> branches are branched from <code>develop</code> and merged to <code>develop</code>.</li>
+<li>The <code>develop</code> branch is merged to <code>master</code> when significant development milestones have been adequately tested.</li>
+</ul>
+</li>
+<li>
+<p>Feature branches</p>
+<ul>
 <li>Short-lived, generally a few days.</li>
 <li>Normally only one developer.</li>
 <li>When presented to the team, it is expected to pass the linter and unit tests.</li>
 <li>It is normal that other team members suggest changes/improvements before merging.</li>
 </ul>
 </li>
-<li><code>release-vX.X</code> branches<ul>
+<li>
+<p>Branches <code>release-vX.X</code></p>
+<ul>
 <li>Only created when a release requires patches (hot-fixes).</li>
-<li>Commits to this branch are cherry-picks from <code>master</code>.</li>
+<li>Commits to this branch are cherry-picks from <code>develop</code>.</li>
 <li>It is not expected that many commits are made to this branch.</li>
 <li>If many commits are required to a release branch then this indicates the need for another release.</li>
 </ul>
 </li>
 </ol>
-<div class="admonition attention">
-<p class="admonition-title">Attention</p>
-<p>One day the project might desire a <code>develop</code> branch to ensure that <code>master</code> is always production ready. This can be useful when adding and maturing multiple inter-dependant features. At this stage, it is not required and would lead to more complexity. At this of project maturity, that complexity would be extra effort with the possibility of errors without a significant return.</p>
-</div>
 <h2 id="process">Process</h2>
 <h3 id="feature-branches">Feature branches</h3>
 <ul>
@@ -827,8 +833,8 @@
       
     </div>
     
-      <script src="../../assets/javascripts/vendor.7e0ee788.min.js"></script>
-      <script src="../../assets/javascripts/bundle.b3a72adc.min.js"></script><script id="__lang" type="application/json">{"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing"}</script>
+      <script src="../../assets/javascripts/vendor.fd16492e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.7836ba4d.min.js"></script><script id="__lang" type="application/json">{"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing"}</script>
       
       <script>
         app = initialize({
